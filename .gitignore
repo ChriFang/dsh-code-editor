@@ -1,0 +1,17 @@
+# Packed plugin artifacts
+*.tgz
+.npm-cache/
+.pnpm-store/
+
+# Dependencies
+node_modules/
+
+# Logs and temporary files
+*.log
+tmp/
+.tmp/
+
+# OS and editor metadata
+.DS_Store
+Thumbs.db
+.idea/

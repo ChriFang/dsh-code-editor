@@ -1,0 +1,3 @@
+- insert:
+    - id: code-editor
+      name: '@local/dsh-code-editor'
