@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-code-editor",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "private": true,
   "description": "Browse project files, search names and content, edit and save files, and insert selected code into the message draft.",
   "type": "module",

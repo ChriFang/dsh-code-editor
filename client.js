@@ -4,6 +4,24 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement;
 
+    // The Host's shared UI package exposes its Shiki highlighter. Requiring it
+    // here does not add a package dependency: this is a platform module that
+    // the shell has already loaded. Older Hosts without the export keep the
+    // plain-text behaviour through the guards below.
+    let primitives = null;
+    try {
+      primitives = require('@deepseek-ai/dsh-client-ui-primitives');
+    } catch {
+      primitives = null;
+    }
+    const useCodeHighlighter = typeof primitives?.useCodeHighlighter === 'function'
+      ? primitives.useCodeHighlighter
+      : null;
+    const languageForPath = typeof primitives?.languageForPath === 'function'
+      ? primitives.languageForPath
+      : () => undefined;
+    const useHighlight = useCodeHighlighter ?? (() => undefined);
+
     const NS = 'codeEditor';
     const API = {
       list: '/api/code-editor/list',
@@ -225,12 +243,19 @@ window.__ModuleLoader__.load({
 .dsh-ce-banner span{flex:1;min-width:0}
 .dsh-ce-banner button{flex:0 0 auto}
 .dsh-ce-editor-scroll{display:flex;flex:1;min-height:0;overflow:hidden}
-.dsh-ce-code{display:flex;flex:1;min-width:0;min-height:0;background:var(--dsw-alias-bg-base)}
-.dsh-ce-gutter{flex:0 0 54px;width:54px;padding:10px 8px 10px 0;overflow:hidden;border-right:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-state-idle-primary);font:12px/20px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-align:right;user-select:none}
+.dsh-ce-code{display:flex;flex:1;min-width:0;min-height:0;background:var(--dsw-alias-bg-base);--dsh-ce-code-font:12px/20px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--dsh-ce-code-tab-size:2}
+.dsh-ce-gutter{flex:0 0 54px;width:54px;padding:10px 8px 10px 0;overflow:hidden;border-right:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-state-idle-primary);font:var(--dsh-ce-code-font);text-align:right;user-select:none}
 .dsh-ce-gutter-line{height:20px;white-space:pre}
-.dsh-ce-textarea{flex:1;min-width:0;min-height:0;margin:0;padding:10px 14px 10px 10px;border:0;outline:0;resize:none;background:transparent;color:var(--dsw-alias-label-primary);caret-color:var(--dsw-alias-brand-primary);font:12px/20px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;overflow:auto;tab-size:2}
-.dsh-ce-textarea::selection{background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-base)}
-.dsh-ce-textarea[readonly]{color:var(--dsw-alias-label-secondary)}
+.dsh-ce-editor{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden}
+.dsh-ce-highlight{position:absolute;inset:0;margin:0;padding:10px 14px 10px 10px;border:0;background:transparent;color:var(--shiki-foreground,var(--dsw-alias-label-primary));font:var(--dsh-ce-code-font);white-space:pre;word-break:normal;overflow-wrap:normal;overflow:hidden;pointer-events:none;tab-size:var(--dsh-ce-code-tab-size);font-variant-ligatures:none}
+.dsh-ce-highlight-content{will-change:transform}
+.dsh-ce-line{height:20px;line-height:20px;white-space:pre}
+.dsh-ce-textarea{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:10px 14px 10px 10px;border:0;outline:0;resize:none;background:transparent;color:transparent;caret-color:var(--dsw-alias-brand-primary);font:var(--dsh-ce-code-font);white-space:pre;word-break:normal;overflow-wrap:normal;overflow:auto;tab-size:var(--dsh-ce-code-tab-size);font-variant-ligatures:none}
+.dsh-ce-textarea::selection{background:rgba(59,130,246,.28);background:color-mix(in srgb,var(--dsw-alias-brand-primary) 30%,transparent);color:transparent}
+.dsh-ce-textarea[readonly]{color:transparent}
+.dsh-ce-editor.is-composing .dsh-ce-highlight{visibility:hidden}
+.dsh-ce-editor.is-composing .dsh-ce-textarea{color:var(--dsw-alias-label-primary)}
+.dsh-ce-editor.is-readonly .dsh-ce-highlight{opacity:.9}
 .dsh-ce-statusbar{display:flex;align-items:center;gap:10px;height:26px;flex:0 0 26px;padding:0 10px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);font-size:10.5px;white-space:nowrap;overflow:hidden}
 .dsh-ce-status-right{margin-left:auto;overflow:hidden;text-overflow:ellipsis}
 .dsh-ce-badge{border:1px solid var(--dsw-alias-border-l1);border-radius:4px;padding:0 4px;font-size:9.5px;line-height:15px;color:var(--dsw-alias-label-secondary)}
@@ -441,6 +466,18 @@ window.__ModuleLoader__.load({
       };
     }
 
+    /**
+     * Shiki drops the final empty token line, while a textarea still shows it.
+     * Pad or trim to the exact line count so the highlight layer and the
+     * textarea keep the same vertical geometry.
+     */
+    function alignTokenLines(tokens, text) {
+      const count = text.split('\n').length;
+      const lines = tokens.slice(0, count);
+      while (lines.length < count) lines.push([]);
+      return lines;
+    }
+
     function truncatePath(value, max) {
       const text = String(value);
       if (text.length <= max) return text;
@@ -472,6 +509,7 @@ window.__ModuleLoader__.load({
       const [notice, setNotice] = React.useState(null);
       const [saving, setSaving] = React.useState(false);
       const [saveError, setSaveError] = React.useState(null);
+      const [composing, setComposing] = React.useState(false);
       const [searchMode, setSearchMode] = React.useState('content');
       const [query, setQuery] = React.useState('');
       const [includeIgnored, setIncludeIgnored] = React.useState(false);
@@ -495,6 +533,7 @@ window.__ModuleLoader__.load({
       const openSeqRef = React.useRef(0);
       const textareaRef = React.useRef(null);
       const gutterRef = React.useRef(null);
+      const highlightContentRef = React.useRef(null);
       const treeRef = React.useRef(null);
       const searchInputRef = React.useRef(null);
       const rowRefs = React.useRef(new Map());
@@ -804,10 +843,19 @@ window.__ModuleLoader__.load({
         });
       }
 
-      function syncScroll(event) {
+      function syncEditorScroll(element) {
+        if (element === null) return;
         if (gutterRef.current !== null) {
-          gutterRef.current.scrollTop = event.currentTarget.scrollTop;
+          gutterRef.current.scrollTop = element.scrollTop;
         }
+        if (highlightContentRef.current !== null) {
+          highlightContentRef.current.style.transform =
+            `translate3d(${-element.scrollLeft}px, ${-element.scrollTop}px, 0)`;
+        }
+      }
+
+      function syncScroll(event) {
+        syncEditorScroll(event.currentTarget);
       }
 
       function runSearch(event) {
@@ -915,6 +963,41 @@ window.__ModuleLoader__.load({
 
       const dirty = doc !== null && doc.status === 'ready' && doc.text !== doc.original;
 
+      const plainLines = React.useMemo(
+        () => (doc !== null && doc.status === 'ready' ? doc.text.split('\n') : []),
+        [doc?.status, doc?.text],
+      );
+      const lang = doc !== null && doc.status === 'ready'
+        ? languageForPath(doc.rel ?? doc.path)
+        : undefined;
+      const highlight = useHighlight(lang);
+      // Tokenizing an editable 5000-line file on every keystroke would stall
+      // typing. Show plain text while editing such a file, then colour it once
+      // the user pauses. Read-only files never type, so they highlight at once.
+      const deferHighlight = doc !== null && doc.status === 'ready'
+        && doc.readOnly !== true
+        && plainLines.length > 1500;
+      const [largeText, setLargeText] = React.useState('');
+
+      React.useEffect(() => {
+        if (!deferHighlight) return undefined;
+        const timer = setTimeout(() => setLargeText(doc.text), 180);
+        return () => clearTimeout(timer);
+      }, [deferHighlight, doc?.status, doc?.text]);
+
+      const highlightSource = deferHighlight
+        ? largeText
+        : (doc !== null && doc.status === 'ready' ? doc.text : '');
+      const tokens = React.useMemo(() => {
+        if (doc === null || doc.status !== 'ready' || lang === undefined || typeof highlight !== 'function') {
+          return null;
+        }
+        if (highlightSource !== doc.text) return null;
+        const raw = highlight(highlightSource);
+        return raw === undefined || raw === null ? null : alignTokenLines(raw, highlightSource);
+      }, [doc?.status, doc?.text, lang, highlightSource, highlight]);
+      const displayLines = tokens ?? plainLines;
+
       React.useEffect(() => {
         if (tab !== 'search') return;
         requestAnimationFrame(() => searchInputRef.current?.focus());
@@ -940,14 +1023,16 @@ window.__ModuleLoader__.load({
         const end = start + (lines[target - 1]?.length ?? 0);
         element.scrollTop = Math.max(0, (target - 1) * 20 - 120);
         element.setSelectionRange(start, end);
-        if (gutterRef.current !== null) gutterRef.current.scrollTop = element.scrollTop;
+        syncEditorScroll(element);
         setCaret(caretAt(doc.text, start, end));
         // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [doc?.status, doc?.openSeq]);
 
-      const lineCount = doc !== null && doc.status === 'ready'
-        ? doc.text.split('\n').length
-        : 0;
+      React.useLayoutEffect(() => {
+        syncEditorScroll(textareaRef.current);
+      });
+
+      const lineCount = plainLines.length;
       const gutterLines = React.useMemo(
         () => Array.from({ length: lineCount }, (_, index) => index + 1),
         [lineCount],
@@ -1234,23 +1319,46 @@ window.__ModuleLoader__.load({
               h('div', { className: 'dsh-ce-gutter', ref: gutterRef, 'aria-hidden': true },
                 gutterLines.map((line) => h('div', { key: line, className: 'dsh-ce-gutter-line' }, line)),
               ),
-              h('textarea', {
-                ref: textareaRef,
-                className: 'dsh-ce-textarea',
-                value: doc.text,
-                readOnly: doc.readOnly,
-                spellCheck: false,
-                autoCapitalize: 'off',
-                autoCorrect: 'off',
-                wrap: 'off',
-                'aria-label': t('editorLabel'),
-                onChange: onTextChange,
-                onKeyDown,
-                onSelect: updateCaret,
-                onKeyUp: updateCaret,
-                onClick: updateCaret,
-                onScroll: syncScroll,
-              }),
+              h('div', {
+                className: 'dsh-ce-editor'
+                  + (composing ? ' is-composing' : '')
+                  + (doc.readOnly ? ' is-readonly' : ''),
+              },
+                h('pre', { className: 'dsh-ce-highlight', 'aria-hidden': true },
+                  h('div', { className: 'dsh-ce-highlight-content', ref: highlightContentRef },
+                    displayLines.map((line, index) => h('div', {
+                      className: 'dsh-ce-line',
+                      key: index,
+                    },
+                      Array.isArray(line)
+                        ? line.map((token, tokenIndex) => h('span', {
+                            key: tokenIndex,
+                            style: token.style,
+                          }, token.text))
+                        : line,
+                    )),
+                  ),
+                ),
+                h('textarea', {
+                  ref: textareaRef,
+                  className: 'dsh-ce-textarea',
+                  value: doc.text,
+                  readOnly: doc.readOnly,
+                  spellCheck: false,
+                  autoCapitalize: 'off',
+                  autoCorrect: 'off',
+                  wrap: 'off',
+                  'aria-label': t('editorLabel'),
+                  onChange: onTextChange,
+                  onKeyDown,
+                  onSelect: updateCaret,
+                  onKeyUp: updateCaret,
+                  onClick: updateCaret,
+                  onScroll: syncScroll,
+                  onCompositionStart: () => setComposing(true),
+                  onCompositionEnd: () => setComposing(false),
+                }),
+              ),
             ),
           ),
         );
