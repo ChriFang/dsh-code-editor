@@ -1,8 +1,28 @@
 {
-  "name": "@local/dsh-code-editor",
+  "name": "dsh-code-editor",
   "version": "1.0.6",
-  "private": true,
-  "description": "Browse project files, search names and content, edit and save files, and insert selected code into the message draft.",
+  "description": "Browse, search, edit, and save project files with syntax highlighting, and insert selected code into the message draft.",
+  "license": "MIT",
+  "author": "ChriFang",
+  "icon": "icon.svg",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChriFang/dsh-code-editor.git"
+  },
+  "homepage": "https://github.com/ChriFang/dsh-code-editor#readme",
+  "bugs": {
+    "url": "https://github.com/ChriFang/dsh-code-editor/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "code-editor",
+    "syntax-highlighting"
+  ],
+  "engines": {
+    "dsh": ">=0.2.2-rc.1"
+  },
   "type": "module",
   "exports": {
     ".": "./index.js",

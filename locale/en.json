@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Code editor",
-    "description": "Browse project files, search file names and contents, edit and save files, and insert selected code into the message draft."
+    "description": "Browse project files, search file names and contents, edit and save files with syntax highlighting, and insert selected code into the message draft."
   }
 }

@@ -1,0 +1,55 @@
+{
+  "format": 1,
+  "title": {
+    "en": "ChriFang DSH plugins",
+    "zh": "ChriFang 插件"
+  },
+  "description": {
+    "en": "Plugins maintained by ChriFang for DeepSeek Harness.",
+    "zh": "ChriFang 维护的 DeepSeek Harness 插件。"
+  },
+  "metadata": {
+    "categories": {
+      "developer-tools": {
+        "title": {
+          "en": "Developer tools",
+          "zh": "开发工具"
+        }
+      }
+    }
+  },
+  "plugins": [
+    {
+      "name": "dsh-code-editor",
+      "title": {
+        "en": "Code editor",
+        "zh": "代码编辑器"
+      },
+      "description": {
+        "en": "Browse, search, edit, and save project files, with Shiki syntax highlighting and insert-selection into the message draft.",
+        "zh": "浏览、搜索、编辑和保存工程文件，支持 Shiki 语法高亮，并可把选中代码插入消息输入框。"
+      },
+      "icon": "icons/dsh-code-editor.svg",
+      "author": "ChriFang",
+      "homepage": "https://github.com/ChriFang/dsh-code-editor#readme",
+      "repository": {
+        "url": "https://github.com/ChriFang/dsh-code-editor"
+      },
+      "metadata": {
+        "category": "developer-tools"
+      },
+      "versions": [
+        {
+          "version": "1.0.6",
+          "publishTimestamp": 1794223830,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.2-rc.1"
+          }
+        }
+      ]
+    }
+  ]
+}

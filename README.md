@@ -9,6 +9,32 @@
 - **插入会话**：在编辑器里选中文本，点「插入选中」即可把选中内容作为引用插入消息输入框。
 - **只读保护**：超过 5000 行或 2 MB 的文件、二进制/非 UTF-8 文件只读展示；只读权限模式下保存会被拒绝。
 
+## 安装
+
+要求 DSH `>= 0.2.2-rc.1`（Web UI）。
+
+### 从 npm / Plugin Manager
+
+```powershell
+dsh plugin --profile <profile> add dsh-code-editor
+```
+
+或在 Harness 的 **Plugins → Add plugin** 中输入 `dsh-code-editor`。安装后刷新页面，打开任意会话，点顶部的 `</>` tab。
+
+### 从插件市场索引
+
+在 Harness 中启用实验性的 **Custom plugin market**，然后打开 **Plugins → Discover → Add index source**，添加公开索引地址，例如：
+
+```text
+https://chrifang.github.io/dsh-code-editor-market/index.json
+```
+
+以你实际部署的 Pages 地址为准。索引格式和发布方式见 [site/README.md](https://github.com/ChriFang/dsh-code-editor/blob/main/site/README.md)。
+
+### 本地开发
+
+见 [安装说明.md](https://github.com/ChriFang/dsh-code-editor/blob/main/安装说明.md)。
+
 ## 使用
 
 打开任意会话后，顶部标题下方的 View tab 行会出现 `</>` tab，位于「对话」和「轨迹」之后。点击它进入代码编辑器：
