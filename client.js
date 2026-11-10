@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: '@local/dsh-code-editor',
+  id: 'dsh-code-editor',
   factory(require) {
     const React = require('react')
     const h = React.createElement;
@@ -1474,8 +1474,8 @@ window.__ModuleLoader__.load({
         const t = ctx.locale.bind(NS);
         ctx.effect(() => {
           const tag = document.createElement('style');
-          tag.dataset.plugin = '@local/dsh-code-editor';
-          tag.dataset.pluginCss = '@local/dsh-code-editor/code-editor.css';
+          tag.dataset.plugin = 'dsh-code-editor';
+          tag.dataset.pluginCss = 'dsh-code-editor/code-editor.css';
           tag.textContent = CSS;
           document.head.appendChild(tag);
           return () => tag.remove();

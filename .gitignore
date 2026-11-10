@@ -11,6 +11,9 @@ node_modules/
 tmp/
 .tmp/
 
+# Local npm credentials (never commit auth tokens)
+.npmrc
+
 # OS and editor metadata
 .DS_Store
 Thumbs.db

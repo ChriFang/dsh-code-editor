@@ -11,9 +11,11 @@ const CLIENT = new URL('../client.js', import.meta.url);
  */
 function loadFactory() {
   let factory = null;
+  let id = null;
   const window = {
     __ModuleLoader__: {
       load(registration) {
+        id = registration.id;
         factory = registration.factory;
       },
     },
@@ -26,7 +28,7 @@ function loadFactory() {
     requestAnimationFrame: (callback) => callback(),
   });
   assert.equal(typeof factory, 'function', 'client.js must register a factory');
-  return factory;
+  return { factory, id };
 }
 
 const Fragment = Symbol('Fragment');
@@ -100,7 +102,11 @@ function walk(node, out) {
   }
 }
 
-const factory = loadFactory();
+const { factory, id } = loadFactory();
+const packageJson = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const patch = fs.readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8');
+assert.equal(id, packageJson.name, 'client module registration id must match package.json name');
+assert.ok(patch.includes(`name: '${packageJson.name}'`), 'patch row name must match package.json name');
 const React = createReact();
 
 function render(doc, primitives) {

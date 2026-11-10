@@ -1,6 +1,6 @@
 {
   "name": "dsh-code-editor",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Browse, search, edit, and save project files with syntax highlighting, and insert selected code into the message draft.",
   "license": "MIT",
   "author": "ChriFang",
