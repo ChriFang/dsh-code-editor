@@ -19,7 +19,7 @@ https://chrifang.github.io/dsh-code-editor-market/index.json
 2. 用 npm 的实际发布时间更新 `site/index.json` 里的 `publishTimestamp`（Unix 秒）：
 
    ```powershell
-   npm view dsh-code-editor time.1.0.7
+   npm view dsh-code-editor time.1.0.8
    ```
 
    `site/index.json` 里当前的值是准备索引时的时间戳，正式发布后应替换。

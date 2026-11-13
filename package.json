@@ -1,6 +1,6 @@
 {
   "name": "dsh-code-editor",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Browse, search, edit, and save project files with syntax highlighting, and insert selected code into the message draft.",
   "license": "MIT",
   "author": "ChriFang",
@@ -28,7 +28,8 @@
     ".": "./index.js",
     "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg"
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
   },
   "files": [
     "index.js",
@@ -44,11 +45,7 @@
     },
     "client": {
       "platform": "web",
-      "immediately": true,
-      "inject": [
-        "@deepseek-ai/dsh-client-ui-conversation",
-        "@deepseek-ai/dsh-client-locale"
-      ]
+      "immediately": true
     }
   }
 }

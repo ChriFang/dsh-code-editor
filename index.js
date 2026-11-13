@@ -9,7 +9,7 @@
 
 import { Buffer } from 'node:buffer';
 
-export const inject = ['agents', 'connection', 'fs', 'sandboxPolicy'];
+export const inject = ['connection'];
 
 const ROUTE_LIST = '/api/code-editor/list';
 const ROUTE_READ = '/api/code-editor/read';
@@ -141,31 +141,49 @@ export function apply(ctx) {
     if (typeof sessionId !== 'string' || sessionId.length === 0) {
       fail(400, 'bad-request', 'A Session id is required.');
     }
-    const agent = ctx.agents.get(sessionId);
+
+    // The editor is a Web plugin: its Host row must stay active even in a
+    // minimal profile that does not mount agent/fs services. These services
+    // are only needed by request handlers, so resolve them lazily instead of
+    // making plugin activation wait for them.
+    const agents = ctx.get('agents');
+    if (agents === undefined) {
+      fail(503, 'unavailable', 'The agent service is unavailable.');
+    }
+    const sandboxPolicy = ctx.get('sandboxPolicy');
+    if (sandboxPolicy === undefined) {
+      fail(503, 'unavailable', 'The sandbox policy service is unavailable.');
+    }
+    const fileSystem = ctx.get('fs');
+    if (fileSystem === undefined) {
+      fail(503, 'unavailable', 'The filesystem service is unavailable.');
+    }
+
+    const agent = agents.get(sessionId);
     if (agent === undefined) {
       fail(409, 'session-not-live', 'This Session is not live. Reopen it and try again.');
     }
     const policy = {
-      ...ctx.sandboxPolicy.resolve({ session: agent.session }),
+      ...sandboxPolicy.resolve({ session: agent.session }),
       sessionId: agent.session.id,
     };
     const root = agent.session.header.cwd ?? policy.workspaceRoot;
     if (typeof root !== 'string' || root.length === 0) {
       fail(409, 'no-workspace', 'This Session has no working directory.');
     }
-    const rootTarget = await ctx.fs.resolve(root, { signal });
-    return { root, rootTarget, policy };
+    const rootTarget = await fileSystem.resolve(root, { signal });
+    return { root, rootTarget, policy, fs: fileSystem };
   };
 
   const confine = async (scope, targetPath, signal) => {
     if (typeof targetPath !== 'string' || targetPath.length === 0) {
       fail(400, 'bad-request', 'A path is required.');
     }
-    const target = await ctx.fs.resolve(targetPath, {
+    const target = await scope.fs.resolve(targetPath, {
       cwd: scope.root,
       signal,
     });
-    if (!ctx.fs.contains(scope.rootTarget, target)) {
+    if (!scope.fs.contains(scope.rootTarget, target)) {
       fail(403, 'outside-workspace', 'The path is outside this project.');
     }
     return target;
@@ -175,11 +193,11 @@ export function apply(ctx) {
     const body = await requestJson(request, 64 * 1024);
     const scope = await resolveScope(body.sessionId, request.signal);
     const target = await confine(scope, body.path, request.signal);
-    const info = await ctx.fs.stat(target, request.signal);
+    const info = await scope.fs.stat(target, request.signal);
     if (info === undefined) fail(404, 'not-found', 'The directory no longer exists.');
     if (info.type !== 'directory') fail(400, 'not-directory', 'The path is not a directory.');
 
-    const entries = await ctx.fs.listDir(target, request.signal);
+    const entries = await scope.fs.listDir(target, request.signal);
     const visible = entries.slice(0, MAX_LIST_ENTRIES).map((entry) => ({
       name: entry.name,
       type: entry.type,
@@ -196,7 +214,7 @@ export function apply(ctx) {
     const body = await requestJson(request, 64 * 1024);
     const scope = await resolveScope(body.sessionId, request.signal);
     const target = await confine(scope, body.path, request.signal);
-    const info = await ctx.fs.stat(target, request.signal);
+    const info = await scope.fs.stat(target, request.signal);
     if (info === undefined) fail(404, 'not-found', 'The file no longer exists.');
     if (info.type !== 'file') fail(400, 'not-regular-file', 'The path is not a regular file.');
     if (info.size !== undefined && info.size > MAX_READ_BYTES) {
@@ -205,7 +223,7 @@ export function apply(ctx) {
 
     let text;
     try {
-      text = await ctx.fs.readText(target, request.signal);
+      text = await scope.fs.readText(target, request.signal);
     } catch (error) {
       mapFsError(error);
     }
@@ -255,7 +273,7 @@ export function apply(ctx) {
 
       let entries;
       try {
-        entries = await ctx.fs.listDir(directory.target, request.signal);
+        entries = await scope.fs.listDir(directory.target, request.signal);
       } catch (error) {
         if (request.signal.aborted) throw error;
         continue;
@@ -271,7 +289,7 @@ export function apply(ctx) {
           truncated = true;
           break;
         }
-        if (!ctx.fs.contains(scope.rootTarget, entry.target)) continue;
+        if (!scope.fs.contains(scope.rootTarget, entry.target)) continue;
         const rel = directory.rel.length === 0
           ? entry.name
           : `${directory.rel}/${entry.name}`;
@@ -308,7 +326,7 @@ export function apply(ctx) {
 
         let text;
         try {
-          text = await ctx.fs.readText(entry.target, request.signal);
+          text = await scope.fs.readText(entry.target, request.signal);
         } catch (error) {
           if (request.signal.aborted) throw error;
           continue;
@@ -375,7 +393,7 @@ export function apply(ctx) {
       fail(403, 'read-only', 'The current permission mode is read-only.');
     }
     const target = await confine(scope, body.path, request.signal);
-    const info = await ctx.fs.stat(target, request.signal);
+    const info = await scope.fs.stat(target, request.signal);
     if (info === undefined) fail(404, 'not-found', 'The file no longer exists.');
     if (info.type !== 'file') fail(400, 'not-regular-file', 'The path is not a regular file.');
     if (typeof expectedVersion === 'string' && info.version !== expectedVersion) {
@@ -384,7 +402,7 @@ export function apply(ctx) {
 
     let outcome;
     try {
-      outcome = await ctx.fs.writeText(
+      outcome = await scope.fs.writeText(
         target,
         content,
         { kind: 'replaceIfVersion', version: info.version },

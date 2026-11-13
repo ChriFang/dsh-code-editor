@@ -70,6 +70,9 @@ const ctx = {
   effect(callback) {
     return callback();
   },
+  get(name) {
+    return this[name];
+  },
   agents: {
     get(sessionId) {
       if (sessionId !== 'session-1') return undefined;
